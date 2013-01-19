@@ -101,6 +101,26 @@ function parse(tokens) {
   }
 }
 
+function generateFind(node) {
+  return function() {
+    var fields = node.fields;
+    var collection = node.from;
+    
+    if(fields.length === 1 && fields[0] === '*') {
+      return db[collection].find();
+    } else {
+      var projection = {};
+      for(var i in fields) {
+        projection[fields[i]] = 1;
+      }
+      
+      return db[collection].find({}, projection);
+    }
+  }
+}
+
 function translate(ast) {
-  
+  if(ast['select'] !== null) {
+    return generateFind(ast['select']);
+  }
 }
