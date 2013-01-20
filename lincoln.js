@@ -17,9 +17,25 @@ var __debug__ = true;
  * @param msg - a concise, succinct error message
  */
 function error(msg) {
-  if(!__debug__) {
-    throw msg;
+  throw msg;
+}
+
+function tokeniseString(input, tokens, pos) {
+  var i = pos;
+
+  var ch = '', buffer = '';
+  while(ch = input[pos], ch !== undefined) {
+    if(ch === "'") {
+      tokens.push({type:'literal', value:buffer});            
+      return (pos + 1);
+    } else {
+      buffer += ch;
+    }
+    
+    pos++;
   }
+  
+  error('Parse Error: Unclosed string literal at ' + input + '[' + i + ']');
 }
 
 /**
@@ -32,10 +48,14 @@ exports.tokenise = function(input) {
   var tokens = [];
 
   var ch = '', buffer = '';
-  for(i in input) {
+  for(var i = 0; i < input.length; i++) {
     ch = input[i];
     
-    if(ch === ' ' || ch === ';') {
+    if(ch === "'") {
+      buffer = '';
+      i = tokeniseString(input, tokens, ++i);
+      continue;
+    } else if(ch === ' ' || ch === ';') {
       // We gots us a token, store it & clear the buffer.
       if(reserved.indexOf(buffer) > -1) {
         tokens.push({type:'reserved', value:buffer});

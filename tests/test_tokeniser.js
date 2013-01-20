@@ -24,7 +24,7 @@ lincoln.__debug__ = true;
   assert.ok(tokens.length === 1);
   assert.ok(tokens[0].type === 'reserved');
   assert.ok(tokens[0].value === 'from');
-}());
+});
 
 (function test_tokenise_single_column_list() {
   var tokens_a = lincoln.tokenise('column_a;');
@@ -54,4 +54,26 @@ lincoln.__debug__ = true;
   assert.ok(tokens[5].type === 'id');
   assert.ok(tokens[5].value === 'c');
 
+}());
+
+(function test_tokenise_string() {
+  var tokens = lincoln.tokenise("'Hello, World!';");
+    
+  assert.ok(tokens.length === 1);
+  assert.ok(tokens[0].type === 'literal');
+  assert.ok(tokens[0].value === 'Hello, World!');
+}());
+
+(function test_tokenise_unclosed_string_fails() {
+  assert.throws(function() {
+    lincoln.tokenise("'Hello, World;");
+  });
+}());
+
+(function test_tokenise_string_with_escape_chars() {
+  var tokens = lincoln.tokenise("'Hello,\sWorld!'");
+  
+  assert.ok(tokens.length === 1);
+  assert.ok(tokens[0].type === 'literal');
+  assert.ok(tokens[0].value === 'Hello, World!');
 }());
