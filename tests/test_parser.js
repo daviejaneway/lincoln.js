@@ -20,7 +20,7 @@ var assert = require('assert');
     statement: {
       fields: [{type:'id', value:'*'}],
       from:   {type:'id', value:'test'},
-      modifiers:[]
+      where:[]
   }});
   
   assert.deepEqual(output, expected);
@@ -39,7 +39,7 @@ var assert = require('assert');
     statement: {
       fields: [{type:'id', value:'a'}, {type:'id', value:'b'}, {type:'id', value:'c'}],
       from: {type:'id', value:'test'},
-      modifiers:[]
+      where:[]
   }});
   
   assert.deepEqual(output, expected);
@@ -81,16 +81,13 @@ var assert = require('assert');
         statement: {
           fields: [{type:'id', value:'*'}],
           from:   {type:'id', value:'test'},
-          modifiers: [{
-            type:'where',
-            clauses: [{
-              type:'clause',
-              expression: {
-                lval: {type:'id', value:'a'},
-                rel:  {type:'rel', value:'='},
-                rval: {type:'id', value:'1'}
-              }
-            }]
+          where:  [{
+            type: 'clause',
+            expression: {
+              lval: {type:'id', value:'a'},
+              rel:  {type:'rel', value:'='},
+              rval: {type:'id', value:'1'}
+            }
           }]
         }
       }
@@ -105,16 +102,13 @@ var assert = require('assert');
   var output = lincoln.parse(tokens);
     
   var expected = [{
-    type:'where',
-    clauses:[{
-      type:'clause',
-      expression: {
-        lval: {type:'id', value:'a'},
-        rel:  {type:'rel', value:'='},
-        rval: {type:'id', value:'1'}
-      }
-    }]
+    type: 'clause',
+    expression: {
+      lval: {type:'id', value:'a'},
+      rel:  {type:'rel', value:'='},
+      rval: {type:'id', value:'1'}
+    }
   }];
-  
-  assert.deepEqual(output.statements[0].statement.modifiers, expected);
+    
+  assert.deepEqual(output.statements[0].statement.where, expected);
 }());

@@ -1,3 +1,4 @@
+
 "use strict";
 
 (function(exports) {
@@ -209,18 +210,20 @@ function parseModifiers(tokens) {
 }
 
 exports.parseWhere = function(tokens) {
-  var ast = {
-    type: 'where',
-    clauses: []
-  };
-  
+  var token;
+  if(token = tokens.pop(), token.value !== 'where') {
+    tokens.push(token);
+  }
+
+  var ast = [];
+    
   var clause;
   while(clause = exports.parseClause(tokens), clause.type === 'clause') {    
     if(clause.type !== 'clause') {
       error('Parse Error: expected expression, found ' + clause.expression);
     }
     
-    ast.clauses.push(clause);
+    ast.push(clause);
   }
   
   return ast;
@@ -232,7 +235,7 @@ exports.parseSelect = function(tokens) {
     statement: {
       fields:[],
       from:{},
-      modifiers:[]
+      where:[]
     }
   };
   
@@ -240,7 +243,7 @@ exports.parseSelect = function(tokens) {
   ast.statement.from = exports.parseFrom(tokens);
   
   if(tokens.length > 0) {
-    ast.statement.modifiers = parseModifiers(tokens);
+    ast.statement.where = exports.parseWhere(tokens);
   }
   
   return ast;
@@ -266,20 +269,41 @@ exports.parse = function(tokens) {
   return ast;
 }
 
-function generateFind(node) {    
+function generateWhere(node) {
+  var where = {};
+  
+  var clause;
+  for(var i in node) {
+    clause = node[i];
+    
+    var field = clause.expression.lval.value;
+    var value = clause.expression.rval.value;
+    var rel   = clause.expression.rel.value;
+    
+    switch(rel) {
+      case '=': where[field] = parseInt(value); break;
+      default: error('Compilation Error: unsupported operator ' + rel);
+    }
+  }
+    
+  return where;
+}
+
+function generateFind(node) {
   return function() {
     var fields = node.statement.fields;
     var collection = node.statement.from.value;
-    
+    var where = generateWhere(node.statement.where);
+        
     if(fields.length === 1 && fields[0].value === '*') {
-      return db[collection].find();
+      return db[collection].find(where);
     } else {
       var projection = {};
       for(var i in fields) {
         projection[fields[i].value] = 1;
       }
             
-      return db[collection].find({}, projection);
+      return db[collection].find(where, projection);
     }
   }
 }
