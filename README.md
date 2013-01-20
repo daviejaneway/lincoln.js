@@ -6,7 +6,7 @@ lincoln.js is an SQL to MongoDB transpiler, written purely in javascript.
 Goals
 -----
 lincoln.js aims to ease database migrations from SQL based systems to MongoDB, allowing you to query, update and insert
-your MongoDB data in a subset of the Standard Query Language.
+your MongoDB data in a subset of the Structured Query Language.
 
 Why?
 ----
