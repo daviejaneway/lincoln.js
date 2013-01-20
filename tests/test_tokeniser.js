@@ -70,10 +70,10 @@ lincoln.__debug__ = true;
   });
 }());
 
-(function test_tokenise_string_with_escape_chars() {
-  var tokens = lincoln.tokenise("'Hello,\sWorld!'");
+(function test_tokenise_string_with_escape_s() {
+  var tokens = lincoln.tokenise("'Hello,\\sWorld!'");
   
   assert.ok(tokens.length === 1);
   assert.ok(tokens[0].type === 'literal');
-  assert.ok(tokens[0].value === 'Hello, World!');
+  assert.ok(tokens[0].value === 'Hello, World!'); 
 }());

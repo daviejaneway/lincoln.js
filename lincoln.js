@@ -28,6 +28,14 @@ function tokeniseString(input, tokens, pos) {
     if(ch === "'") {
       tokens.push({type:'literal', value:buffer});            
       return (pos + 1);
+    } else if(ch === '\\') {
+      var esc = input[pos+1];
+      
+      switch(esc) {
+        case 't': buffer += '\t'; pos++; break;
+        case 's': buffer += ' '; pos++; break;
+        default : error("Syntax Error: Unsupported escape sequence '\\" + esc + "'");
+      }
     } else {
       buffer += ch;
     }
@@ -106,11 +114,11 @@ exports.parseFields = function(tokens) {
 exports.parseLiteral = function(tokens) {
   var literal = tokens.pop();
   
-  if(literal.type !== 'id') {
-    error('Parse Error: expected column name or literal, found ' + literal.value);
+  if(literal.type === 'id' || literal.type === 'literal') {
+    return literal;
   }
   
-  return literal;
+  error('Parse Error: expected column name or literal, found ' + literal.value);
 }
 
 exports.parseRelationship = function(tokens) {
@@ -182,17 +190,33 @@ exports.parseWhere = function(tokens) {
   }
 }
 
+function parseModifiers(tokens) {
+  var modifiers = [];
+  
+  var modifier;
+  while(modifier = tokens.pop(), modifier.type === 'reserved') {
+    
+  }
+  
+  return modifiers;
+}
+
 exports.parseSelect = function(tokens) {
   var ast = {
     type: 'select',
     statement: {
       fields:[],
-      from:{}
+      from:{},
+      modifiers:[]
     }
   };
   
   ast.statement.fields = exports.parseFields(tokens);
   ast.statement.from = exports.parseFrom(tokens);
+  
+  if(tokens.length > 0) {
+    ast.statement.modifiers = parseModifiers(tokens);
+  }
   
   return ast;
 }

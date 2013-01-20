@@ -55,3 +55,28 @@ var assert = require('assert');
   
   assert.deepEqual(output, expected);
 }());
+
+(function test_parse_string_compare_expression() {
+  var tokens = lincoln.tokenise("a = 'Hello, World!';");
+  var output = lincoln.parseExpression(tokens);
+  
+  var expected = {
+    lval: {type:'id', value:'a'},
+    rel:  {type:'rel', value:'='},
+    rval: {type:'literal', value:'Hello, World!'}
+  };
+  
+  assert.deepEqual(output, expected);
+}());
+
+(function test_single_clause_where() {
+  var tokens = lincoln.tokenise("select * from test where a = 1;");
+  try {
+    var output = lincoln.parse(tokens);
+  }
+  catch(e) {
+    console.log(e);
+  }
+  
+  console.log(output);
+}());
