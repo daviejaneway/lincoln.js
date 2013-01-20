@@ -144,6 +144,10 @@ exports.parseFrom = function(tokens) {
 }
 
 exports.parseExpression = function(tokens) {
+  if(tokens.length === 0) {
+    return {};
+  }
+  
   var ast = {
     lval: {},
     rel: {},
@@ -162,43 +166,64 @@ exports.parseExpression = function(tokens) {
 }
 
 exports.parseClause = function(tokens) {
+  if(tokens.length === 0) {
+    return {};
+  }
+  
   var ast = {
-    left: {},
-    right: {},
-    rel: {}
+    type: 'clause',
+    expression:{}
   };
   
-  ast.left  = exports.parseExpression(tokens);
-  ast.rel   = exports.parseRelationship(tokens);
-  ast.right = exports.parseExpression(tokens);
+  ast.expression  = exports.parseExpression(tokens);
+
+  return ast;
 }
 
-exports.parseWhere = function(tokens) {
-  var ast = {
-    where: {
-      clauses:[]
-    }
-  };
+function parseModifier(tokens) {
+  var ast = {};
   
-  var clause;
-  while(clause = tokens.pop(), clause.value === 'and') {
-    if(clause.type !== 'id') {
-      error('Parse Error: expected expression, found ' + clause.value);
-    }
-    
-    ast.where.clauses.push(exports.parseClause(tokens));
+  var modifier = tokens.pop();
+  
+  if(modifier === "undefined" || modifier === undefined) {
+    return null;
   }
+  
+  switch(modifier.value) {
+    case 'where': return exports.parseWhere(tokens);
+    default: error('Syntax Error: unexpected ' + modifier.value);
+  }
+  
+  return ast;
 }
 
 function parseModifiers(tokens) {
   var modifiers = [];
   
   var modifier;
-  while(modifier = tokens.pop(), modifier.type === 'reserved') {
+  while(modifier = parseModifier(tokens), modifier !== null) {
+    modifiers.push(modifier);
+  }
+       
+  return modifiers;
+}
+
+exports.parseWhere = function(tokens) {
+  var ast = {
+    type: 'where',
+    clauses: []
+  };
+  
+  var clause;
+  while(clause = exports.parseClause(tokens), clause.type === 'clause') {    
+    if(clause.type !== 'clause') {
+      error('Parse Error: expected expression, found ' + clause.expression);
+    }
     
+    ast.clauses.push(clause);
   }
   
-  return modifiers;
+  return ast;
 }
 
 exports.parseSelect = function(tokens) {

@@ -19,7 +19,8 @@ var assert = require('assert');
     type:'select',
     statement: {
       fields: [{type:'id', value:'*'}],
-      from:   {type:'id', value:'test'}
+      from:   {type:'id', value:'test'},
+      modifiers:[]
   }});
   
   assert.deepEqual(output, expected);
@@ -37,7 +38,8 @@ var assert = require('assert');
     type:'select',
     statement: {
       fields: [{type:'id', value:'a'}, {type:'id', value:'b'}, {type:'id', value:'c'}],
-      from: {type:'id', value:'test'}
+      from: {type:'id', value:'test'},
+      modifiers:[]
   }});
   
   assert.deepEqual(output, expected);
@@ -71,12 +73,48 @@ var assert = require('assert');
 
 (function test_single_clause_where() {
   var tokens = lincoln.tokenise("select * from test where a = 1;");
-  try {
-    var output = lincoln.parse(tokens);
-  }
-  catch(e) {
-    console.log(e);
-  }
+  var output = lincoln.parse(tokens);
   
-  console.log(output);
+  var expected = {
+    statements: [{
+        type:'select',
+        statement: {
+          fields: [{type:'id', value:'*'}],
+          from:   {type:'id', value:'test'},
+          modifiers: [{
+            type:'where',
+            clauses: [{
+              type:'clause',
+              expression: {
+                lval: {type:'id', value:'a'},
+                rel:  {type:'rel', value:'='},
+                rval: {type:'id', value:'1'}
+              }
+            }]
+          }]
+        }
+      }
+    ]
+  };
+    
+  assert.deepEqual(output, expected);
+}());
+
+(function test_parse_single_where_clause() {
+  var tokens = lincoln.tokenise('select * from test where a = 1;');
+  var output = lincoln.parse(tokens);
+    
+  var expected = [{
+    type:'where',
+    clauses:[{
+      type:'clause',
+      expression: {
+        lval: {type:'id', value:'a'},
+        rel:  {type:'rel', value:'='},
+        rval: {type:'id', value:'1'}
+      }
+    }]
+  }];
+  
+  assert.deepEqual(output.statements[0].statement.modifiers, expected);
 }());
