@@ -24,28 +24,27 @@ platforms.
 First, clone (or download) lincoln.js:
 
 ```
-git clone git://github.com/daviejaneway/lincoln.js.git
-cd lincoln.js
+$ git clone git://github.com/daviejaneway/lincoln.js.git
+$ cd lincoln.js
 ```
 
 Optionally run the test suite (you will need node.js for this step):
 
 ```
-node tests/*.js
+$ node tests/*.js
 ```
 
 To load up lincoln.js, fire up a MongoDB shell:
 
 ```
-mongod
-
-mongo --shell lincoln.js
+$ mongod
+$ mongo --shell lincoln.js
 ```
 To invoke the transpiler call out to:
 
 ```javascript
 // Assuming your SQL statement is well formed, the transpiler will hand you back a query function.
-var query_func = lincoln.sql_to_mongo('select a, b from test where a = 1 and b = 'Hello, Mongo!';');
+var query_func = lincoln.sql_to_mongo("select a, b from test where a = 1 and b = 'Hello, Mongo!';");
 
 // Invoking the query function returns a mongo cursor (e.g db.test.find())
 query_func();
