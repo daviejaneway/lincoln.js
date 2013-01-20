@@ -20,7 +20,8 @@ var assert = require('assert');
     statement: {
       fields: [{type:'id', value:'*'}],
       from:   {type:'id', value:'test'},
-      where:[]
+      where:[],
+      explain: false
   }});
   
   assert.deepEqual(output, expected);
@@ -37,9 +38,10 @@ var assert = require('assert');
   expected.statements.push({
     type:'select',
     statement: {
-      fields: [{type:'id', value:'a'}, {type:'id', value:'b'}, {type:'id', value:'c'}],
-      from: {type:'id', value:'test'},
-      where:[]
+      fields:  [{type:'id', value:'a'}, {type:'id', value:'b'}, {type:'id', value:'c'}],
+      from:    {type:'id', value:'test'},
+      where:   [],
+      explain: false
   }});
   
   assert.deepEqual(output, expected);
@@ -88,7 +90,8 @@ var assert = require('assert');
               rel:  {type:'rel', value:'='},
               rval: {type:'id', value:'1'}
             }
-          }]
+          }],
+          explain: false
         }
       }
     ]
@@ -111,4 +114,11 @@ var assert = require('assert');
   }];
     
   assert.deepEqual(output.statements[0].statement.where, expected);
+}());
+
+(function test_explain_select_all_from_test() {
+  var tokens = lincoln.tokenise('explain select * from test;');
+  var output = lincoln.parse(tokens);
+  
+  assert.ok(output.statements[0].statement.explain === true);
 }());

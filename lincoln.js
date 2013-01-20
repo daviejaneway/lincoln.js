@@ -4,7 +4,7 @@
 (function(exports) {
 
 /** SQL keywords */
-var reserved  = ['select', 'from', 'where', 'order', 'group', 'by', 'limit', 'and', 'or', 'like', 'null'];
+var reserved  = ['select', 'from', 'where', 'order', 'group', 'by', 'limit', 'and', 'or', 'like', 'null', 'explain'];
 /** Relationship operators */
 var relations = ['=', '!=', '>', '<', '>=', '<=', 'is', 'not'];
 
@@ -115,10 +115,21 @@ exports.parseFields = function(tokens) {
 exports.parseLiteral = function(tokens) {
   var literal = tokens.pop();
   
-  if(literal.type === 'id' || literal.type === 'literal') {
-    return literal;
+  if(literal === undefined || literal === 'undefined') {
+    error("Syntax Error: expected one of 'and', 'or' or expression (e.g a = 1, b = 'Hello, World!')");
   }
   
+  if(literal.value == 'and') {
+    literal = exports.parseLiteral(tokens);
+  }
+  
+  if(literal.type === 'id' || literal.type === 'literal') {
+    return literal;
+  } else {
+    tokens.push(literal);
+    return null;
+  }
+    
   error('Parse Error: expected column name or literal, found ' + literal.value);
 }
 
@@ -156,6 +167,11 @@ exports.parseExpression = function(tokens) {
   };
   
   var lval = exports.parseLiteral(tokens);  
+  
+  if(lval === null) {
+    return null;
+  }
+  
   var rel  = exports.parseRelationship(tokens);
   var rval = exports.parseLiteral(tokens);
   
@@ -176,37 +192,15 @@ exports.parseClause = function(tokens) {
     expression:{}
   };
   
-  ast.expression  = exports.parseExpression(tokens);
-
-  return ast;
-}
-
-function parseModifier(tokens) {
-  var ast = {};
+  var expression = exports.parseExpression(tokens);
   
-  var modifier = tokens.pop();
-  
-  if(modifier === "undefined" || modifier === undefined) {
+  if(expression === null) {
     return null;
   }
   
-  switch(modifier.value) {
-    case 'where': return exports.parseWhere(tokens);
-    default: error('Syntax Error: unexpected ' + modifier.value);
-  }
+  ast.expression = expression;
   
   return ast;
-}
-
-function parseModifiers(tokens) {
-  var modifiers = [];
-  
-  var modifier;
-  while(modifier = parseModifier(tokens), modifier !== null) {
-    modifiers.push(modifier);
-  }
-       
-  return modifiers;
 }
 
 exports.parseWhere = function(tokens) {
@@ -218,24 +212,25 @@ exports.parseWhere = function(tokens) {
   var ast = [];
     
   var clause;
-  while(clause = exports.parseClause(tokens), clause.type === 'clause') {    
+  while(clause = exports.parseClause(tokens), clause !== null && clause.type === 'clause') {
     if(clause.type !== 'clause') {
       error('Parse Error: expected expression, found ' + clause.expression);
     }
-    
+        
     ast.push(clause);
   }
   
   return ast;
 }
 
-exports.parseSelect = function(tokens) {
+exports.parseSelect = function(tokens, explain) {
   var ast = {
     type: 'select',
     statement: {
       fields:[],
       from:{},
-      where:[]
+      where:[],
+      explain: (explain === undefined || explain === 'undefined') ? false : explain
     }
   };
   
@@ -247,6 +242,11 @@ exports.parseSelect = function(tokens) {
   }
   
   return ast;
+}
+
+exports.parseExplain = function(tokens) {
+  tokens.pop();
+  return exports.parseSelect(tokens, true);
 }
 
 exports.parse = function(tokens) {
@@ -261,7 +261,8 @@ exports.parse = function(tokens) {
   var head;
   while(head = tokens.pop(), tokens.length > 0) {
     switch(head.value) {
-      case 'select': ast.statements.push(exports.parseSelect(tokens)); break;
+      case 'explain': ast.statements.push(exports.parseExplain(tokens)); break;
+      case 'select' : ast.statements.push(exports.parseSelect(tokens)); break;
       default: error('Parse Error: unexpected ' + head.value + '');
     }
   }
@@ -280,8 +281,14 @@ function generateWhere(node) {
     var value = clause.expression.rval.value;
     var rel   = clause.expression.rel.value;
     
+    if(value.match(/[0-9]+(.[0-9]+)?/)) {
+      value = parseInt(value);
+    }
+        
     switch(rel) {
-      case '=': where[field] = parseInt(value); break;
+      case '=' : where[field] = value; break;
+      case '!=': where[field] = {'$ne': value}; break;
+      case '>' : where[field] = {'$gt': value}; break;
       default: error('Compilation Error: unsupported operator ' + rel);
     }
   }
@@ -294,23 +301,26 @@ function generateFind(node) {
     var fields = node.statement.fields;
     var collection = node.statement.from.value;
     var where = generateWhere(node.statement.where);
-        
+    var explain = node.statement.explain;
+    
     if(fields.length === 1 && fields[0].value === '*') {
-      return db[collection].find(where);
+      return (explain) ? db[collection].find(where).explain() : db[collection].find(where);
     } else {
       var projection = {};
       for(var i in fields) {
         projection[fields[i].value] = 1;
       }
             
-      return db[collection].find(where, projection);
+      return (explain) ? db[collection].find(where, projection).explain() : db[collection].find(where, projection);
     }
   }
 }
 
+
+
 exports.translate = function(ast) {
   var mongo_queries = [];
-    
+  
   for(var stmt in ast.statements) {
     switch(ast.statements[stmt].type) {
       case 'select': mongo_queries.push(generateFind(ast.statements[stmt])); break;
