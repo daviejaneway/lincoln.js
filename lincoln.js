@@ -8,7 +8,7 @@ var reserved  = ['select', 'from', 'where', 'order', 'group', 'by', 'limit', 'an
 var relations = ['=', '!=', '>', '<', '>=', '<=', 'is', 'not'];
 
 /** debugging flag */
-exports.__debug__ = false;
+var __debug__ = true;
 
 /**
  * Jump out at the first malformed token,
@@ -18,8 +18,7 @@ exports.__debug__ = false;
  */
 function error(msg) {
   if(!__debug__) {
-    print(msg);
-    throw null;
+    throw msg;
   }
 }
 
@@ -68,7 +67,7 @@ exports.tokenise = function(input) {
  *
  * @param tokens - list of token objects to parse
  */
-function parseFields(tokens) {
+exports.parseFields = function(tokens) {
   var ast = [];
   var field;
   while(field = tokens.pop(), field.type === 'id') {
@@ -76,7 +75,7 @@ function parseFields(tokens) {
       continue;
     }
         
-    ast.push(field.value);
+    ast.push(field);
   }
     
   tokens.push(field);
@@ -84,7 +83,7 @@ function parseFields(tokens) {
   return ast;
 }
 
-function parseLiteral(tokens) {
+exports.parseLiteral = function(tokens) {
   var literal = tokens.pop();
   
   if(literal.type !== 'id') {
@@ -94,7 +93,7 @@ function parseLiteral(tokens) {
   return literal;
 }
 
-function parseRelationship(tokens) {
+exports.parseRelationship = function(tokens) {
   var rel = tokens.pop();
   
   if(rel.type !== 'rel') {
@@ -104,32 +103,28 @@ function parseRelationship(tokens) {
   return rel;
 }
 
-function parseFrom(tokens) {
+exports.parseFrom = function(tokens) {
   var from = tokens.pop();
   
   if(from.value !== 'from') {
     error('Parse Error: expected \'from\', found ' + from.value);
   }
   
-  from = tokens.pop();
+  var table = exports.parseLiteral(tokens);  
   
-  if(from.type !== 'id') {
-    error('Parse Error: expected table identifier, found ' + from.value);
-  }
-  
-  return from.value;
+  return table;
 }
 
-function parseExpression(tokens) {
+exports.parseExpression = function(tokens) {
   var ast = {
     lval: {},
     rel: {},
     rval: {}
   };
   
-  var lval = parseIdentifier();  
-  var rel  = parseRelationship();
-  var rval = parseIdentifier();
+  var lval = exports.parseLiteral(tokens);  
+  var rel  = exports.parseRelationship(tokens);
+  var rval = exports.parseLiteral(tokens);
   
   ast.lval = lval;
   ast.rel  = rel;
@@ -138,19 +133,19 @@ function parseExpression(tokens) {
   return ast;
 }
 
-function parseClause(tokens) {
+exports.parseClause = function(tokens) {
   var ast = {
     left: {},
     right: {},
     rel: {}
   };
   
-  ast.left  = parseExpression(tokens);
-  ast.rel   = parseRelationship(tokens);
-  ast.right = parseExpression(tokens);
+  ast.left  = exports.parseExpression(tokens);
+  ast.rel   = exports.parseRelationship(tokens);
+  ast.right = exports.parseExpression(tokens);
 }
 
-function parseWhere(tokens) {
+exports.parseWhere = function(tokens) {
   var ast = {
     where: {
       clauses:[]
@@ -163,67 +158,80 @@ function parseWhere(tokens) {
       error('Parse Error: expected expression, found ' + clause.value);
     }
     
-    ast.where.clauses.push(parseClause(tokens));
+    ast.where.clauses.push(exports.parseClause(tokens));
   }
 }
 
-function parseSelect(tokens) {
+exports.parseSelect = function(tokens) {
   var ast = {
-    select: {
+    type: 'select',
+    statement: {
       fields:[],
-      from:''
+      from:{}
     }
   };
   
-  ast.select.fields = parseFields(tokens);
-  ast.select.from = parseFrom(tokens);
+  ast.statement.fields = exports.parseFields(tokens);
+  ast.statement.from = exports.parseFrom(tokens);
   
   return ast;
 }
 
-function parse(tokens) {
+exports.parse = function(tokens) {
   if(tokens.length === 0) {
     return false;
   }
   
+  var ast = {
+    statements:[]
+  };
+    
   var head;
   while(head = tokens.pop(), tokens.length > 0) {
     switch(head.value) {
-      case 'select': return parseSelect(tokens);
-      case 'where':  return parseWhere(tokens);
+      case 'select': ast.statements.push(exports.parseSelect(tokens)); break;
       default: error('Parse Error: unexpected ' + head.value + '');
     }
   }
+  
+  return ast;
 }
 
-function generateFind(node) {
+function generateFind(node) {    
   return function() {
-    var fields = node.fields;
-    var collection = node.from;
+    var fields = node.statement.fields;
+    var collection = node.statement.from.value;
     
-    if(fields.length === 1 && fields[0] === '*') {
+    if(fields.length === 1 && fields[0].value === '*') {
       return db[collection].find();
     } else {
       var projection = {};
       for(var i in fields) {
-        projection[fields[i]] = 1;
+        projection[fields[i].value] = 1;
       }
-      
+            
       return db[collection].find({}, projection);
     }
   }
 }
 
-function translate(ast) {
-  if(ast['select'] !== null) {
-    return generateFind(ast['select']);
+exports.translate = function(ast) {
+  var mongo_queries = [];
+    
+  for(var stmt in ast.statements) {
+    switch(ast.statements[stmt].type) {
+      case 'select': mongo_queries.push(generateFind(ast.statements[stmt])); break;
+    }
   }
+  
+  return (mongo_queries.length === 1) ? mongo_queries[0] : mongo_queries;
 }
 
 
-function sql_to_mongo(query) {
-  return translate(parse(tokenise(query)));
+exports.sql_to_mongo = function(query) {
+  return exports.translate(exports.parse(exports.tokenise(query)));
 }
+
 }(typeof exports === 'undefined'
   ? (this.lincoln = {})
   : exports));
